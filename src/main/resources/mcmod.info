@@ -1,0 +1,16 @@
+[
+{
+  "modid": "thermaltinkering",
+  "name": "Thermal Tinkering",
+  "description": "Allows casting of Tinkers' Construct parts in the Thermal Expansion fluid transposer.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["SamboyGaming"],
+  "credits": "Team CoFH, for making Thermal Expansion and all the rest - great job guys! And the slimeknights team for making Mantle and Tinkers' Construct.",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
