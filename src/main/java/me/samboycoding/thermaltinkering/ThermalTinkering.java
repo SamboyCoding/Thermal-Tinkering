@@ -131,7 +131,7 @@ public class ThermalTinkering
 				{
 					exceptionStrings.remove(index);
 				}
-				cfg.get("main", "blacklist", new String[] { "glass.molten", "obsidian.molten" }).set((String[]) exceptionStrings.toArray());
+				cfg.get("main", "blacklist", new String[] { "glass.molten", "obsidian.molten", "redstone.molten" }).set((String[]) exceptionStrings.toArray());
 				cfg.save();
 			}
 			
@@ -153,6 +153,16 @@ public class ThermalTinkering
 				Fluid fluid = (Fluid) pairs.getValue();
 				
 				// What follows is a little bit of trickery to get everything lined up. Cause formatting.
+				if(fluid.getBlock() == null || fluid.getBlock().getUnlocalizedName() == null)
+				{
+
+					if (id.endsWith(".molten"))
+					{
+						moltenStuff.put(id, fluid);
+					}
+					log.error("FLUID: '" + fluid.getLocalizedName(new FluidStack(fluid, 1)) + "' HAS NO BLOCK OR THE BLOCK HAS NO NAME! SKIPPING DUMP!");
+					continue;
+				}
 				int numSpaces2 = 50 - id.length();
 				int numSpaces = 130 - fluid.getBlock().getUnlocalizedName().length() - id.length() - 2 - numSpaces2;
 				String spaces = "";
