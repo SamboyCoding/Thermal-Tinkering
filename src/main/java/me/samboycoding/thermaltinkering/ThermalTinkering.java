@@ -262,6 +262,7 @@ public class ThermalTinkering {
         }
     }
 
+    // Lifted from the TiCon source code (MeltingRecipe#calcTemperature)
     private static int calcTemperature(int temp, int timeAmount) {
         int base = Material.VALUE_Block;
         int max_tmp = Math.max(0, temp - 300); // we use 0 as baseline, not 300
