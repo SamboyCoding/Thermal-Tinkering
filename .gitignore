@@ -19,3 +19,7 @@ eclipse/
 .metadata/
 bin/
 libs/
+
+out/
+
+run/

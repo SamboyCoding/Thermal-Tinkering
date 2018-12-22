@@ -1,357 +1,276 @@
 package me.samboycoding.thermaltinkering;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.logging.log4j.Logger;
-
-import cofh.api.modhelpers.ThermalExpansionHelper;
-import cpw.mods.fml.common.Mod;
-import cpw.mods.fml.common.Mod.EventHandler;
-import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
-import cpw.mods.fml.common.event.FMLPostInitializationEvent;
-import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cofh.api.util.ThermalExpansionHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.oredict.OreDictionary;
-import tconstruct.TConstruct;
-import tconstruct.library.TConstructRegistry;
-import tconstruct.library.crafting.CastingRecipe;
-import tconstruct.library.crafting.LiquidCasting;
-import tconstruct.library.util.IPattern;
-import tconstruct.smeltery.TinkerSmeltery;
-import tconstruct.tools.TinkerTools;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.Logger;
+import slimeknights.tconstruct.library.TinkerRegistry;
+import slimeknights.tconstruct.library.materials.Material;
+import slimeknights.tconstruct.library.smeltery.Cast;
+import slimeknights.tconstruct.library.tools.IToolPart;
+import slimeknights.tconstruct.library.tools.ToolPart;
+import slimeknights.tconstruct.shared.TinkerFluids;
+import slimeknights.tconstruct.smeltery.TinkerSmeltery;
+
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Mod(modid = ThermalTinkering.MODID, name = ThermalTinkering.NAME, version = ThermalTinkering.VERSION, dependencies = ThermalTinkering.DEPENDENCY_STRING)
-public class ThermalTinkering
-{
-	Logger log;
-	public static final String MODID = "thermaltinkering";
-	public static final String VERSION = "1.0";
-	public static final String NAME = "Thermal Tinkering";
-	public static final String DEPENDENCY_STRING = "" + // This is just here for formatting
-	"required-after:Forge@[10.13.3.1384,11.14);" + "required-after:Mantle@[1.7.10-0.3.2,);" + "required-before:ThermalExpansion@[1.7.10R4.0.0RC2,);" + "required-after:ThermalFoundation@[1.7.10R1.0.0RC3,);" + "required-after:CoFHAPI|energy;" + "required-after:CoFHCore;";
-	
-	LiquidCasting tableCasting;
-	List<Fluid> exceptions;
-	List<String> exceptionStrings;
-	List<String> toAddStrings;
-	File configDirectory;
-	File configFile;
-	File fluidDump;
-	File moltenDump;
-	
-	Configuration cfg;
-	
-	@EventHandler
-	public void preinit(FMLPreInitializationEvent e) throws Exception
-	{
-		log = e.getModLog();
-		
-		configDirectory = new File(e.getModConfigurationDirectory(), "/ThermalTinkering/");
-		if (!configDirectory.exists())
-		{
-			configDirectory.mkdirs();
-		}
-		
-		configFile = new File(configDirectory, "config.cfg");
-		if (!configFile.exists())
-		{
-			configFile.createNewFile();
-		}
-		
-		fluidDump = new File(configDirectory, "fluids.cfg");
-		if (fluidDump.exists())
-		{
-			fluidDump.delete(); // Remove old version to be repopulated
-		}
-		fluidDump.createNewFile();
-		
-		moltenDump = new File(configDirectory, "moltenFluids.cfg");
-		if (moltenDump.exists())
-		{
-			moltenDump.delete();
-		}
-		moltenDump.createNewFile();
-		
-		cfg = new Configuration(configFile);
-		cfg.load();
-		
-		exceptionStrings = new ArrayList<String>(Arrays.asList(cfg.getStringList("blacklist", "main", new String[] { "glass.molten", "obsidian.molten" }, "List of fluids to completely ignore.")));
-		toAddStrings = new ArrayList<String>(Arrays.asList(cfg.getStringList("addFluids", "main", new String[] {}, "List of fluids to explicitly add. Only works if there is already a recipe - just add any we miss.")));
-		
-		cfg.save();
-		
-		log.info("Preinit Complete");
-	}
-	
-	public void postInit(FMLPostInitializationEvent e)
-	{
-		log.info("Beginning PostInit");
-		log.info("PostInit Complete");
-	}
-	
-	@EventHandler
-	public void loadcomplete(FMLLoadCompleteEvent event) throws Exception
-	{
-		try
-		{
-			tableCasting = TConstructRegistry.instance.getTableCasting();
-			exceptions = new ArrayList<Fluid>();
-			ArrayList<Integer> toRemove = new ArrayList<Integer>();
-			
-			int removed = 0;
-			for (String exception : exceptionStrings)
-			{
-				Fluid adding = FluidRegistry.getFluid(exception);
-				if (adding == null)
-				{
-					log.warn("Removing invalid liquid " + exception + " from config - it is not registered at this point!");
-					toRemove.add(exceptionStrings.indexOf(exception));
-					continue;
-				}
-				removed++;
-				exceptions.add(adding);
-			}
-			log.info("Successfully removed " + removed + " liquids from proccessing list from config.");
-			
-			if (!toRemove.isEmpty())
-			{
-				for (int index : toRemove)
-				{
-					exceptionStrings.remove(index);
-				}
-				cfg.get("main", "blacklist", new String[] { "glass.molten", "obsidian.molten", "redstone.molten" }).set((String[]) exceptionStrings.toArray());
-				cfg.save();
-			}
-			
-			log.info("Loading fluid list...");
-			
-			Iterator iter = FluidRegistry.getRegisteredFluids().entrySet().iterator();
-			
-			log.debug("All loaded liquids: " + FluidRegistry.getRegisteredFluids().entrySet());
-			log.info("Loading molten metals...");
-			
-			Map<String, Fluid> moltenStuff = (Map<String, Fluid>) new HashMap<String, Fluid>();
-			String toWrite = "#This is a simple dump of all loaded liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n";
-			String toWrite2 = "#This is a simple dump of all molten liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n";
-			while (iter.hasNext())
-			{
-				Map.Entry pairs = (Map.Entry) iter.next();
-				
-				String id = (String) pairs.getKey();
-				Fluid fluid = (Fluid) pairs.getValue();
-				
-				// What follows is a little bit of trickery to get everything lined up. Cause formatting.
-				if(fluid.getBlock() == null || fluid.getBlock().getUnlocalizedName() == null)
-				{
+public class ThermalTinkering {
+    static final String MODID = "thermaltinkering";
+    static final String VERSION = "1.0";
+    static final String NAME = "Thermal Tinkering";
+    static final String DEPENDENCY_STRING = "" // This is just here for formatting
+            + "required-after:mantle;"
+            + "required-before:thermalexpansion;"
+            + "required-after:thermalfoundation;"
+            + "required-after:cofhcore;";
 
-					if (id.endsWith(".molten"))
-					{
-						moltenStuff.put(id, fluid);
-					}
-					log.error("FLUID: '" + fluid.getLocalizedName(new FluidStack(fluid, 1)) + "' HAS NO BLOCK OR THE BLOCK HAS NO NAME! SKIPPING DUMP!");
-					continue;
-				}
-				int numSpaces2 = 50 - id.length();
-				int numSpaces = 130 - fluid.getBlock().getUnlocalizedName().length() - id.length() - 2 - numSpaces2;
-				String spaces = "";
-				String spaces2 = "";
-				for (int i = 0; i < numSpaces; i++)
-				{
-					spaces += " ";
-				}
-				for (int j = 0; j < numSpaces2; j++)
-				{
-					spaces2 += " ";
-				}
-				// End madness
-				
-				if (id.endsWith(".molten"))
-				{
-					moltenStuff.put(id, fluid);
-					toWrite2 += id + spaces2 + "(" + fluid.getBlock().getUnlocalizedName() + ")" + spaces + " = " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + "\n";
-				}
-				toWrite += id + spaces2 + "(" + fluid.getBlock().getUnlocalizedName() + ")" + spaces + " = " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + "\n";
-			}
-			
-			PrintWriter writer = new PrintWriter(fluidDump);
-			writer.print(toWrite);
-			writer.close();
-			
-			log.info("Successfully written loaded fluid dump to " + fluidDump.getAbsolutePath());
-			
-			writer = new PrintWriter(moltenDump);
-			writer.print(toWrite2);
-			writer.close();
-			
-			log.info("Successfuly written molten fluid dump to " + moltenDump.getAbsolutePath());
-			
-			int added = 0;
-			for (String add : toAddStrings)
-			{
-				Fluid adding = FluidRegistry.getFluid(add);
-				if (adding == null)
-				{
-					log.warn("Removing invalid liquid " + add + " from config - it is not registered at this point!");
-					toRemove.add(toAddStrings.indexOf(add));
-					continue;
-				}
-				added++;
-				moltenStuff.put(add, adding);
-			}
-			log.info("Successfully added " + added + " liquids to proccessing list from config.");
-			
-			if (!toRemove.isEmpty())
-			{
-				for (int index : toRemove)
-				{
-					toAddStrings.remove(index);
-				}
-				cfg.get("main", "addFluids", new String[] {}).set((String[]) toAddStrings.toArray());
-				cfg.save();
-			}
-			
-			log.info("Done loading - adding stuff");
-			log.debug("Registered molten stuff: " + moltenStuff.entrySet());
-			
-			Iterator moltenIter = moltenStuff.entrySet().iterator();
-			
-			ItemStack ingotPattern = new ItemStack(TinkerSmeltery.metalPattern, 1, 0);
-			
-			// Ingots
-			while (moltenIter.hasNext())
-			{
-				Map.Entry pairs = (Map.Entry) moltenIter.next();
-				Fluid ft = (Fluid) pairs.getValue();
-				if (exceptions.contains(ft))
-					continue;
-				String fluidTypeName = (String) pairs.getKey();
-				
-				String[] split = fluidTypeName.split("\\.");
-				int len = split.length;
-				int i = -1;
-				String oreDictName = "";
-				for (String s : split)
-				{
-					i++;
-					if (i == len - 1)
-					{
-						break; // Do not include the .molten bit.
-					}
-					oreDictName += s;
-				}
-				oreDictName = oreDictName.substring(0, 1).toUpperCase() + oreDictName.substring(1);
-				for (ItemStack ore : OreDictionary.getOres("ingot" + oreDictName))
-				{
-					if (ore == null)
-					{
-						log.error("NO ORE FOUND FOR TYPE ingot" + fluidTypeName + "!");
-						continue;
-					}
-					if (ft == null)
-					{
-						log.error("NO FLUID FOUND FOR FLUIDTYPE " + ft + "!");
-						continue;
-					}
-					if (ore.getDisplayName() == null)
-					{
-						log.error("NO DISPLAYNAME FOUND FOR ORE RESULT " + ore + "!");
-						continue;
-					}
-					if (ft.getName() == null)
-					{
-						log.error("NO NAME FOUND FOR FLUID " + ft + "!");
-						continue;
-					}
-					
-					// Ingot casts
-					ThermalExpansionHelper.addTransposerFill(800, ore, ingotPattern, new FluidStack(TinkerSmeltery.moltenAlubrassFluid, 144), false);
-					ThermalExpansionHelper.addTransposerFill(800, ore, ingotPattern, new FluidStack(TinkerSmeltery.moltenGoldFluid, 288), false);
-					
-					// Melting ingots
-					ThermalExpansionHelper.addCrucibleRecipe(5000, new ItemStack(ore.getItem(), 1, ore.getItemDamage()), new FluidStack(ft, 144));
-					
-					// Casting ingots
-					ThermalExpansionHelper.addTransposerFill(800, ingotPattern, ore, new FluidStack(ft, 144), false);
-				}
-			}
-			
-			int fluidAmount = 0;
-			Fluid fs = null;
-			
-			for (int thisPart = 0; thisPart < TinkerTools.patternOutputs.length; thisPart++) // Loop through all defined parts
-			{
-				if (TinkerTools.patternOutputs[thisPart] != null) // Check not null
-				{
-					ItemStack cast = new ItemStack(TinkerSmeltery.metalPattern, 1, thisPart + 1); // Cast for this part
-					fluidAmount = ((IPattern) TinkerSmeltery.metalPattern).getPatternCost(cast) * TConstruct.ingotLiquidValue / 2; // The amount of fluid required
-					log.info("Adding recipes for part " + cast.getDisplayName() + ". Required fluid: " + fluidAmount + "mb");
-					
-					// Cast recipes
-					ThermalExpansionHelper.addTransposerFill(800, new ItemStack(TinkerTools.patternOutputs[thisPart], 1, OreDictionary.WILDCARD_VALUE), cast, new FluidStack(TinkerSmeltery.moltenAlubrassFluid, TConstruct.ingotLiquidValue), false);
-					ThermalExpansionHelper.addTransposerFill(800, new ItemStack(TinkerTools.patternOutputs[thisPart], 1, OreDictionary.WILDCARD_VALUE), cast, new FluidStack(TinkerSmeltery.moltenGoldFluid, TConstruct.ingotLiquidValue * 2), false);
-					
-					// Below is New, improved method for all materials (in
-					// theory)
-					
-					// For each registered fluid
-					for (final Map.Entry<String, Fluid> entry : moltenStuff.entrySet())
-					{
-						// Get the fluid itself
-						final Fluid fluid = entry.getValue();
-						
-						// Create a stack of one ingot
-						final FluidStack fluidStackToolRod = new FluidStack(fluid, 72);
-						
-						if (exceptions.contains(fluid))
-							continue;
-						
-						fs = fluid;
-						final FluidStack fluidStack = new FluidStack(fs, fluidAmount);
-						
-						// Get the output for this metal and cast
-						if (cast == null)
-						{
-							log.fatal("CAST NULL!");
-						}
-						if (tableCasting == null)
-						{
-							log.fatal("Casting table null!");
-						}
-						CastingRecipe thisRecipe = tableCasting.getCastingRecipe(fluidStack, cast);
-						
-						// If this is an invalid combination, skip it.
-						if (thisRecipe == null)
-						{
-							continue;
-						}
-						
-						// Get the part created
-						ItemStack part = thisRecipe.getResult();
-						
-						// Making part
-						ThermalExpansionHelper.addTransposerFill(800 * (fluidAmount / 144), cast, part, new FluidStack(fs, fluidAmount), false);
-						
-						// Melting part
-						ThermalExpansionHelper.addCrucibleRecipe(5000 * (fluidAmount / 144), part, new FluidStack(fs, fluidAmount));
-					}
-				}
-			}
-			log.info("Successfully added recipes for " + TinkerTools.patternOutputs.length + " parts.");
-		} catch (Throwable e)
-		{
-			e.printStackTrace();
-		}
-	}
+    private Logger log;
+    private List<String> defaultExceptions = Arrays.asList("glass.molten", "obsidian.molten", "redstone.molten");
+
+    private List<String> exceptionFluidIDs;
+    private List<String> whitelistFluidIDs;
+    private File fluidDumpFile;
+    private File moltenDumpFile;
+
+    private Configuration cfg;
+
+    @Mod.EventHandler
+    public void PreInit(FMLPreInitializationEvent e) throws Exception {
+        log = e.getModLog();
+
+
+        File configDirectory = new File(e.getModConfigurationDirectory(), "/ThermalTinkering/");
+        if (!configDirectory.exists()) {
+            configDirectory.mkdirs();
+        }
+
+        File configFile = new File(configDirectory, "config.cfg");
+        if (!configFile.exists()) {
+            configFile.createNewFile();
+        }
+
+        fluidDumpFile = new File(configDirectory, "fluids.cfg");
+        if (fluidDumpFile.exists()) {
+            fluidDumpFile.delete(); // Remove old version to be repopulated
+        }
+        fluidDumpFile.createNewFile();
+
+        moltenDumpFile = new File(configDirectory, "moltenFluids.cfg");
+        if (moltenDumpFile.exists()) {
+            moltenDumpFile.delete();
+        }
+        moltenDumpFile.createNewFile();
+
+        cfg = new Configuration(configFile);
+        cfg.load();
+
+        exceptionFluidIDs = new ArrayList<>(Arrays.asList(cfg.getStringList("blacklist", "main", defaultExceptions.toArray(new String[0]), "List of fluids to completely ignore.")));
+        whitelistFluidIDs = new ArrayList<>(Arrays.asList(cfg.getStringList("addFluids", "main", new String[]{}, "List of fluids to explicitly add. Only works if there is already a recipe - just add any we miss.")));
+
+        cfg.save();
+
+        log.info("Pre Init Complete");
+    }
+
+    @Mod.EventHandler
+    public void Init(FMLInitializationEvent event) throws Exception {
+        try {
+            // Map the blacklist fluid IDs to actual fluids
+            List<Fluid> exceptions = exceptionFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
+                    .map(FluidRegistry::getFluid)
+                    .collect(Collectors.toList());
+
+            // Rebuild the blacklist from the fluids that are actually registered.
+            exceptionFluidIDs = exceptions
+                    .stream()
+                    .map(Fluid::getName)
+                    .collect(Collectors.toList());
+
+            log.info("Created exception list of " + exceptions.size() + " fluids.");
+
+            // Save the blacklist to config.
+            cfg.get("main", "blacklist", defaultExceptions.toArray(new String[0])).set(exceptionFluidIDs.toArray(new String[0]));
+            cfg.save();
+
+            log.info("Loading fluid list...");
+
+            log.debug("All loaded liquids: " + FluidRegistry.getRegisteredFluids().entrySet());
+            log.info("Loading molten metals...");
+
+            //#region Fluid Dumps
+            List<Fluid> allMoltenFluids = TinkerRegistry.getAllMaterials()
+                    .stream()
+                    .filter(mat -> mat.isCastable() && mat.getFluid() != null)
+                    .map(Material::getFluid)
+                    .collect(Collectors.toList());
+
+            StringBuilder allLiquidsDump = new StringBuilder("#This is a simple dump of all loaded liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n");
+            StringBuilder allMoltenDump = new StringBuilder("#This is a simple dump of all molten liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n");
+
+            for (Map.Entry<String, Fluid> stringFluidEntry : FluidRegistry.getRegisteredFluids().entrySet()) {
+                String id = stringFluidEntry.getKey();
+                Fluid fluid = stringFluidEntry.getValue();
+
+                String blockName = fluid.getBlock() != null ? fluid.getBlock().getRegistryName().toString() : "[no block]";
+
+                String spaces = StringUtils.repeat(' ', 130 - blockName.length() - id.length() - 2 - (50 - id.length()));
+                String spaces2 = StringUtils.repeat(' ', 50 - id.length());
+
+                allLiquidsDump.append(id).append(spaces2).append("(").append(blockName).append(")").append(spaces).append(" = ").append(fluid.getLocalizedName(new FluidStack(fluid, 1))).append("\n");
+            }
+
+            // Dump molten fluids.
+            allMoltenFluids.forEach(fl -> {
+                String id = fl.getName();
+                String blockName = fl.getBlock() != null ? fl.getBlock().getRegistryName().toString() : "[no block]";
+
+                String spaces = StringUtils.repeat(' ', 130 - blockName.length() - id.length() - 2 - (50 - id.length()));
+                String spaces2 = StringUtils.repeat(' ', 50 - id.length());
+                allMoltenDump.append(id).append(spaces2).append("(").append(blockName).append(")").append(spaces).append(" = ").append(fl.getLocalizedName(new FluidStack(fl, 1))).append("\n");
+            });
+
+            PrintWriter writer = new PrintWriter(fluidDumpFile);
+            writer.print(allLiquidsDump);
+            writer.close();
+
+            log.info("Successfully written loaded fluid dump to " + fluidDumpFile.getAbsolutePath());
+
+            writer = new PrintWriter(moltenDumpFile);
+            writer.print(allMoltenDump);
+            writer.close();
+
+            log.info("Successfully written molten fluid dump to " + moltenDumpFile.getAbsolutePath());
+            //#endregion
+
+            // Map the whitelist fluid IDs to actual fluids
+            List<Fluid> whitelist = whitelistFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
+                    .map(FluidRegistry::getFluid)
+                    .collect(Collectors.toList());
+
+            // Rebuild the whitelist from the fluids that are actually registered.
+            whitelistFluidIDs = whitelist
+                    .stream()
+                    .map(Fluid::getName)
+                    .collect(Collectors.toList());
+
+            log.info("Will add an additional " + whitelist.size() + " fluids to processing list based on whitelist.");
+
+            cfg.get("main", "addFluids", new String[]{}).set(whitelistFluidIDs.toArray(new String[0]));
+            cfg.save();
+
+            log.info("Done loading - adding stuff");
+
+            ItemStack ingotCast = TinkerSmeltery.castIngot;
+
+            // Ingots
+            for (Material mat : TinkerRegistry.getAllMaterials()) {
+                if (!mat.isCastable() || mat.getFluid() == null) continue;
+
+                Fluid fluid = mat.getFluid();
+                if (exceptions.contains(fluid))
+                    continue;
+
+                String fluidId = fluid.getName();
+
+                String oreDictName = StringUtils.capitalize(fluidId.replace(".molten", ""));
+
+                for (ItemStack ingotStack : OreDictionary.getOres("ingot" + oreDictName)) {
+                    if (ingotStack == null) {
+                        log.error("Fluid " + fluidId + " should have an ingot \"ingot" + fluidId + "\" but doesn't.");
+                        continue;
+                    }
+                    if (ingotStack.getDisplayName().isEmpty()) {
+                        log.error(ingotStack + " does not have a display name?");
+                        continue;
+                    }
+                    if (fluid.getName() == null || fluid.getName().isEmpty()) {
+                        log.error("Fluid \"" + fluid + "\" doesn't have a name?");
+                        continue;
+                    }
+
+                    log.info("Mapping " + ingotStack.getDisplayName() + " <=> " + fluid.getLocalizedName(new FluidStack(fluid, 1)));
+
+                    // Ingot casts
+                    ThermalExpansionHelper.addTransposerFill(800, ingotStack, ingotCast, new FluidStack(TinkerFluids.alubrass, Material.VALUE_Ingot), false);
+                    ThermalExpansionHelper.addTransposerFill(800, ingotStack, ingotCast, new FluidStack(TinkerFluids.gold, Material.VALUE_Ingot * 2), false);
+
+                    // Melting ingots
+                    ThermalExpansionHelper.addCrucibleRecipe(5000, new ItemStack(ingotStack.getItem(), 1, ingotStack.getItemDamage()), new FluidStack(fluid, Material.VALUE_Ingot));
+
+                    // Casting ingots
+                    ThermalExpansionHelper.addTransposerFill(800, ingotCast, ingotStack, new FluidStack(fluid, Material.VALUE_Ingot), false);
+                }
+            }
+
+            FluidStack oneIngotOfMoltenAluBrass = new FluidStack(TinkerFluids.alubrass, Material.VALUE_Ingot);
+            FluidStack twoIngotsOfMoltenGold = new FluidStack(TinkerFluids.gold, Material.VALUE_Ingot * 2);
+
+            for (IToolPart iTp : TinkerRegistry.getToolParts()) {
+                if (!iTp.canBeCasted() || !(iTp instanceof ToolPart)) {
+                    continue;
+                }
+                ToolPart toolPart = (ToolPart) iTp;
+                log.info("Adding recipes for part " + toolPart.getItemStackDisplayName(new ItemStack(toolPart, 1)) + " (cost " + toolPart.getCost() + "mB)");
+                for (Material mat : TinkerRegistry.getAllMaterials()) {
+                    if (!mat.isCastable() || !toolPart.canUseMaterial(mat)) continue;
+
+                    //Making the casts
+                    ItemStack part = toolPart.getItemstackWithMaterial(mat);
+
+                    ItemStack cast = new ItemStack(TinkerSmeltery.cast);
+                    Cast.setTagForPart(cast, part.getItem());
+
+                    log.info("Adding cast recipe: " + part.getDisplayName() + " => " + cast.getDisplayName(), 1, 0);
+                    // Aluminum brass
+                    ThermalExpansionHelper.addTransposerFill(800, part, cast, oneIngotOfMoltenAluBrass, false);
+                    // Gold
+                    ThermalExpansionHelper.addTransposerFill(800, part, cast, twoIngotsOfMoltenGold, false);
+
+                    // Now using the casts
+                    Fluid fluid = mat.getFluid();
+                    //The temperature this part would melt at in the smeltery, given its fluid temperature, and the amount of fluid the part is worth
+                    int smelteryMeltingTemp = calcTemperature(fluid.getTemperature(), toolPart.getCost());
+
+                    log.info("Adding transposer recipe: " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " + " + cast.getDisplayName() + " => " + part.getDisplayName() + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
+                    // Make {part} from {toolPart.getCost()} millibuckets of {fluid} using {cast} and {melting temperature * 1.5} RF
+                    ThermalExpansionHelper.addTransposerFill((int) (smelteryMeltingTemp * 1.5f), cast, part, new FluidStack(fluid, toolPart.getCost()), false);
+
+                    log.info("Adding magma crucible recipe: " + part.getDisplayName() + " => " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
+                    // Melt {part} into {toolPart.getCost()} millibuckets of {fluid}
+                    ThermalExpansionHelper.addCrucibleRecipe((int) (smelteryMeltingTemp * 1.5f), part, new FluidStack(fluid, toolPart.getCost()));
+
+                }
+            }
+            log.info("Successfully added recipes for " + TinkerRegistry.getToolParts().size() + " parts.");
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static int calcTemperature(int temp, int timeAmount) {
+        int base = Material.VALUE_Block;
+        int max_tmp = Math.max(0, temp - 300); // we use 0 as baseline, not 300
+        double f = (double) timeAmount / (double) base;
+
+        // we calculate 2^log9(f), which effectively gives us 2^(1 for each multiple of 9)
+        // we simplify it to f^log9(2) to make calculation simpler
+        f = Math.pow(f, 0.31546487678);
+
+        return 300 + (int) (f * (double) max_tmp);
+    }
 }
