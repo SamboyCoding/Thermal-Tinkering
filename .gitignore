@@ -25,3 +25,7 @@ out/
 run/
 
 Thermal-Tinkering\.iws
+
+*.iml
+
+Thermal-Tinkering\.ipr
