@@ -43,11 +43,11 @@ repositories {
 
 dependencies {
     deobfCompile "codechicken:CodeChickenLib:1.12.2-3.2.2.354:universal"
-    deobfCompile "cofh:RedstoneFlux:1.12-2.1.0.6:universal"
+    deobfCompile "cofh:RedstoneFlux:1.12-2.1.0.7:universal"
     deobfCompile "cofh:CoFHWorld:1.12.2-1.3.0.6:universal"
-    deobfCompile "cofh:CoFHCore:1.12.2-4.6.1.22:universal"
-    deobfCompile "cofh:ThermalFoundation:1.12.2-2.6.1.22:universal"
-    deobfCompile "cofh:ThermalExpansion:1.12.2-5.5.2.39:universal"
+    deobfCompile "cofh:CoFHCore:1.12.2-4.6.2.25:universal"
+    deobfCompile "cofh:ThermalFoundation:1.12.2-2.6.2.26:universal"
+    deobfCompile "cofh:ThermalExpansion:1.12.2-5.5.3.41:universal"
     deobfCompile "slimeknights.mantle:Mantle:1.12-1.3.3.40"
     deobfCompile "slimeknights:TConstruct:1.12.2-2.9.1.70"
 }

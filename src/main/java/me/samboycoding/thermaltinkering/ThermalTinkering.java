@@ -2,6 +2,7 @@ package me.samboycoding.thermaltinkering;
 
 import cofh.api.util.ThermalExpansionHelper;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.NonNullList;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
@@ -25,7 +26,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Mod(modid = ThermalTinkering.MODID, name = ThermalTinkering.NAME, version = ThermalTinkering.VERSION, dependencies = ThermalTinkering.DEPENDENCY_STRING)
@@ -35,24 +35,28 @@ public class ThermalTinkering {
     static final String NAME = "Thermal Tinkering";
     static final String DEPENDENCY_STRING = "" // This is just here for formatting
             + "required-after:mantle;"
+            + "required-after:tconstruct;"
             + "required-before:thermalexpansion;"
             + "required-after:thermalfoundation;"
-            + "required-after:cofhcore;";
+            + "required-after:cofhcore@[4.6.2,);";
 
     private Logger log;
-    private List<String> defaultExceptions = Arrays.asList("glass.molten", "obsidian.molten", "redstone.molten");
 
     private List<String> exceptionFluidIDs;
-    private List<String> whitelistFluidIDs;
     private File fluidDumpFile;
     private File moltenDumpFile;
 
     private Configuration cfg;
 
+    private int partMeltingMultiplier;
+    private int partCastingMultiplier;
+    private int castCreationCost;
+    private int ingotMeltingMultiplier;
+    private int ingotCastingMultiplier;
+
     @Mod.EventHandler
     public void PreInit(FMLPreInitializationEvent e) throws Exception {
         log = e.getModLog();
-
 
         File configDirectory = new File(e.getModConfigurationDirectory(), "/ThermalTinkering/");
         if (!configDirectory.exists()) {
@@ -64,13 +68,13 @@ public class ThermalTinkering {
             configFile.createNewFile();
         }
 
-        fluidDumpFile = new File(configDirectory, "fluids.cfg");
+        fluidDumpFile = new File(configDirectory, "fluids.txt");
         if (fluidDumpFile.exists()) {
             fluidDumpFile.delete(); // Remove old version to be repopulated
         }
         fluidDumpFile.createNewFile();
 
-        moltenDumpFile = new File(configDirectory, "moltenFluids.cfg");
+        moltenDumpFile = new File(configDirectory, "moltenFluids.txt");
         if (moltenDumpFile.exists()) {
             moltenDumpFile.delete();
         }
@@ -79,38 +83,40 @@ public class ThermalTinkering {
         cfg = new Configuration(configFile);
         cfg.load();
 
-        exceptionFluidIDs = new ArrayList<>(Arrays.asList(cfg.getStringList("blacklist", "main", defaultExceptions.toArray(new String[0]), "List of fluids to completely ignore.")));
-        whitelistFluidIDs = new ArrayList<>(Arrays.asList(cfg.getStringList("addFluids", "main", new String[]{}, "List of fluids to explicitly add. Only works if there is already a recipe - just add any we miss.")));
+        exceptionFluidIDs = new ArrayList<>(Arrays.asList(cfg.getStringList("blacklist", "main", new String[] {"obsidian"}, "List of fluids to NOT add recipes for.")));
 
+        castCreationCost = cfg.getInt("castCreationCost", "main", 8000, 1000, 50000, "The amount of energy, in RF, required to make a cast");
+        partMeltingMultiplier = cfg.getInt("partMeltingMultiplier", "main", 50, 1, 500, "To calculate the amount of RF needed to melt a tool part, we take its smeltery melting temperature and multiply it by this value.");
+        partCastingMultiplier = cfg.getInt("partCastingMultiplier", "main", 15, 1, 500, "To calculate the amount of RF needed to cast a tool part, we take its smeltery melting temperature and multiply it by this value.");
+        ingotMeltingMultiplier = cfg.getInt("ingotMeltingMultiplier", "main", 8, 1, 500, "Energy required, in RF, to melt an ingot is equal to this multiplied by the ingot's melting temperature in the smeltery.");
+        ingotCastingMultiplier = cfg.getInt("ingotCastingMultiplier", "main", 2, 1, 500, "Energy required, in RF, to cast an ingot is equal to this multiplied by the ingot's melting temperature in the smeltery.");
         cfg.save();
 
         log.info("Pre Init Complete");
     }
 
     @Mod.EventHandler
-    public void Init(FMLInitializationEvent event) throws Exception {
+    public void Init(FMLInitializationEvent event) {
         try {
             // Map the blacklist fluid IDs to actual fluids
-            List<Fluid> exceptions = exceptionFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
+            List<Fluid> blacklist = exceptionFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
                     .map(FluidRegistry::getFluid)
                     .collect(Collectors.toList());
 
             // Rebuild the blacklist from the fluids that are actually registered.
-            exceptionFluidIDs = exceptions
+            exceptionFluidIDs = blacklist
                     .stream()
                     .map(Fluid::getName)
                     .collect(Collectors.toList());
 
-            log.info("Created exception list of " + exceptions.size() + " fluids.");
+            if(exceptionFluidIDs.size() > 0)
+                log.info("Blacklisted " + blacklist.size() + " fluids from config.");
 
             // Save the blacklist to config.
-            cfg.get("main", "blacklist", defaultExceptions.toArray(new String[0])).set(exceptionFluidIDs.toArray(new String[0]));
+            cfg.get("main", "blacklist", new String[0]).set(exceptionFluidIDs.toArray(new String[0]));
             cfg.save();
 
-            log.info("Loading fluid list...");
-
             log.debug("All loaded liquids: " + FluidRegistry.getRegisteredFluids().entrySet());
-            log.info("Loading molten metals...");
 
             //#region Fluid Dumps
             List<Fluid> allMoltenFluids = TinkerRegistry.getAllMaterials()
@@ -120,11 +126,12 @@ public class ThermalTinkering {
                     .collect(Collectors.toList());
 
             StringBuilder allLiquidsDump = new StringBuilder("#This is a simple dump of all loaded liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n");
+            allLiquidsDump.append("#ANY AND ALL CHANGES TO THIS FILE WILL BE REPLACED WHEN THIS FILE IS REGENERATED NEXT TIME THE GAME IS RUN. THIS IS FOR INFORMATIONAL PURPOSES ONLY AND IS NOT A CONFIG FILE!\n\n");
             StringBuilder allMoltenDump = new StringBuilder("#This is a simple dump of all molten liquids, in raw form, with their block names (in brackets) and their localized names, in the format of:\n\n#FLUIDID \t\t\t\t\t\t\t\t\t\t  (FLUIDBLOCK)\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t   = FLUIDLOCALIZEDNAME\n\n");
+            allMoltenDump.append("#ANY AND ALL CHANGES TO THIS FILE WILL BE REPLACED WHEN THIS FILE IS REGENERATED NEXT TIME THE GAME IS RUN. THIS IS FOR INFORMATIONAL PURPOSES ONLY AND IS NOT A CONFIG FILE!\n\n");
 
-            for (Map.Entry<String, Fluid> stringFluidEntry : FluidRegistry.getRegisteredFluids().entrySet()) {
-                String id = stringFluidEntry.getKey();
-                Fluid fluid = stringFluidEntry.getValue();
+            for (Fluid fluid: FluidRegistry.getRegisteredFluids().values()) {
+                String id = fluid.getName();
 
                 String blockName = fluid.getBlock() != null ? fluid.getBlock().getRegistryName().toString() : "[no block]";
 
@@ -157,24 +164,6 @@ public class ThermalTinkering {
             log.info("Successfully written molten fluid dump to " + moltenDumpFile.getAbsolutePath());
             //#endregion
 
-            // Map the whitelist fluid IDs to actual fluids
-            List<Fluid> whitelist = whitelistFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
-                    .map(FluidRegistry::getFluid)
-                    .collect(Collectors.toList());
-
-            // Rebuild the whitelist from the fluids that are actually registered.
-            whitelistFluidIDs = whitelist
-                    .stream()
-                    .map(Fluid::getName)
-                    .collect(Collectors.toList());
-
-            log.info("Will add an additional " + whitelist.size() + " fluids to processing list based on whitelist.");
-
-            cfg.get("main", "addFluids", new String[]{}).set(whitelistFluidIDs.toArray(new String[0]));
-            cfg.save();
-
-            log.info("Done loading - adding stuff");
-
             ItemStack ingotCast = TinkerSmeltery.castIngot;
 
             // Ingots
@@ -182,18 +171,19 @@ public class ThermalTinkering {
                 if (!mat.isCastable() || mat.getFluid() == null) continue;
 
                 Fluid fluid = mat.getFluid();
-                if (exceptions.contains(fluid))
+                if (blacklist.contains(fluid))
                     continue;
 
                 String fluidId = fluid.getName();
 
                 String oreDictName = StringUtils.capitalize(fluidId.replace(".molten", ""));
 
-                for (ItemStack ingotStack : OreDictionary.getOres("ingot" + oreDictName)) {
-                    if (ingotStack == null) {
-                        log.error("Fluid " + fluidId + " should have an ingot \"ingot" + fluidId + "\" but doesn't.");
-                        continue;
-                    }
+                NonNullList<ItemStack> ingots = OreDictionary.getOres("ingot" + oreDictName);
+                if (ingots.isEmpty()) {
+                    log.error("Fluid " + fluidId + " should have at least one ingot \"ingot" + oreDictName + "\" but doesn't.");
+                }
+
+                for (ItemStack ingotStack : ingots) {
                     if (ingotStack.getDisplayName().isEmpty()) {
                         log.error(ingotStack + " does not have a display name?");
                         continue;
@@ -203,17 +193,18 @@ public class ThermalTinkering {
                         continue;
                     }
 
-                    log.info("Mapping " + ingotStack.getDisplayName() + " <=> " + fluid.getLocalizedName(new FluidStack(fluid, 1)));
+                    log.debug("Mapping " + ingotStack.getDisplayName() + " <=> " + fluid.getLocalizedName(new FluidStack(fluid, 1)));
 
-                    // Ingot casts
-                    ThermalExpansionHelper.addTransposerFill(800, ingotStack, ingotCast, new FluidStack(TinkerFluids.alubrass, Material.VALUE_Ingot), false);
-                    ThermalExpansionHelper.addTransposerFill(800, ingotStack, ingotCast, new FluidStack(TinkerFluids.gold, Material.VALUE_Ingot * 2), false);
+                    // Making Ingot casts
+                    ThermalExpansionHelper.addTransposerFill(castCreationCost, ingotStack, ingotCast, new FluidStack(TinkerFluids.alubrass, Material.VALUE_Ingot), false);
+                    ThermalExpansionHelper.addTransposerFill(castCreationCost, ingotStack, ingotCast, new FluidStack(TinkerFluids.gold, Material.VALUE_Ingot * 2), false);
 
+                    int smelteryMeltingTemp = calcTemperature(fluid.getTemperature(), Material.VALUE_Ingot);
                     // Melting ingots
-                    ThermalExpansionHelper.addCrucibleRecipe(5000, new ItemStack(ingotStack.getItem(), 1, ingotStack.getItemDamage()), new FluidStack(fluid, Material.VALUE_Ingot));
+                    ThermalExpansionHelper.addCrucibleRecipe(smelteryMeltingTemp * ingotMeltingMultiplier, new ItemStack(ingotStack.getItem(), 1, ingotStack.getItemDamage()), new FluidStack(fluid, Material.VALUE_Ingot));
 
                     // Casting ingots
-                    ThermalExpansionHelper.addTransposerFill(800, ingotCast, ingotStack, new FluidStack(fluid, Material.VALUE_Ingot), false);
+                    ThermalExpansionHelper.addTransposerFill(smelteryMeltingTemp * ingotCastingMultiplier, ingotCast, ingotStack, new FluidStack(fluid, Material.VALUE_Ingot), false);
                 }
             }
 
@@ -228,31 +219,41 @@ public class ThermalTinkering {
                 log.info("Adding recipes for part " + toolPart.getItemStackDisplayName(new ItemStack(toolPart, 1)) + " (cost " + toolPart.getCost() + "mB)");
                 for (Material mat : TinkerRegistry.getAllMaterials()) {
                     if (!mat.isCastable() || !toolPart.canUseMaterial(mat)) continue;
+                    Fluid fluid = mat.getFluid();
+
+                    if(blacklist.contains(fluid)) {
+                        log.info("\t-Skipping material " + mat.getIdentifier() + " as its fluid, " + fluid.getName() + ", is blacklisted.");
+                        continue;
+                    }
 
                     //Making the casts
                     ItemStack part = toolPart.getItemstackWithMaterial(mat);
 
+                    //log.info("Adding recipes for part: " + part + " (" + part.getDisplayName() + "/" + part.getItem().getRegistryName() + ")");
+
                     ItemStack cast = new ItemStack(TinkerSmeltery.cast);
                     Cast.setTagForPart(cast, part.getItem());
 
-                    log.info("Adding cast recipe: " + part.getDisplayName() + " => " + cast.getDisplayName(), 1, 0);
+                    //Making part casts
+
+//                    log.info("Adding transposer fill recipe: Gold/Alubrass + " + part.getDisplayName() + " => " + cast.getDisplayName(), 1, 0);
                     // Aluminum brass
-                    ThermalExpansionHelper.addTransposerFill(800, part, cast, oneIngotOfMoltenAluBrass, false);
+                    ThermalExpansionHelper.addTransposerFill(castCreationCost, part, cast, oneIngotOfMoltenAluBrass, false);
                     // Gold
-                    ThermalExpansionHelper.addTransposerFill(800, part, cast, twoIngotsOfMoltenGold, false);
+                    ThermalExpansionHelper.addTransposerFill(castCreationCost, part, cast, twoIngotsOfMoltenGold, false);
 
                     // Now using the casts
-                    Fluid fluid = mat.getFluid();
+
                     //The temperature this part would melt at in the smeltery, given its fluid temperature, and the amount of fluid the part is worth
                     int smelteryMeltingTemp = calcTemperature(fluid.getTemperature(), toolPart.getCost());
 
-                    log.info("Adding transposer recipe: " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " + " + cast.getDisplayName() + " => " + part.getDisplayName() + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
+//                    log.info("Adding transposer fill recipe: " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " + " + cast.getDisplayName() + " => " + part.getDisplayName() + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
                     // Make {part} from {toolPart.getCost()} millibuckets of {fluid} using {cast} and {melting temperature * 1.5} RF
-                    ThermalExpansionHelper.addTransposerFill((int) (smelteryMeltingTemp * 1.5f), cast, part, new FluidStack(fluid, toolPart.getCost()), false);
+                    ThermalExpansionHelper.addTransposerFill(smelteryMeltingTemp * partCastingMultiplier, cast, part, new FluidStack(fluid, toolPart.getCost()), false);
 
-                    log.info("Adding magma crucible recipe: " + part.getDisplayName() + " => " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
+                    //log.info("Adding magma crucible recipe: " + part.getDisplayName() + " => " + toolPart.getCost() + "mB of " + fluid.getLocalizedName(new FluidStack(fluid, 1)) + " with " + (smelteryMeltingTemp * 1.5f) + " RF", 1, 0);
                     // Melt {part} into {toolPart.getCost()} millibuckets of {fluid}
-                    ThermalExpansionHelper.addCrucibleRecipe((int) (smelteryMeltingTemp * 1.5f), part, new FluidStack(fluid, toolPart.getCost()));
+                    ThermalExpansionHelper.addCrucibleRecipe(smelteryMeltingTemp * partMeltingMultiplier, part, new FluidStack(fluid, toolPart.getCost()));
 
                 }
             }

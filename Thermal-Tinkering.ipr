@@ -21,7 +21,6 @@
   <component name="DependencyValidationManager">
     <option name="SKIP_IMPORT_STATEMENTS" value="false" />
   </component>
-  <component name="Encoding" addBOMForNewFiles="with NO BOM" />
   <component name="EntryPointsManager">
     <list size="2">
       <item index="0" class="java.lang.String" itemvalue="net.minecraftforge.fml.common.Mod" />
@@ -39,6 +38,7 @@
             <option value="$PROJECT_DIR$" />
           </set>
         </option>
+        <option name="useAutoImport" value="true" />
         <option name="useQualifiedModuleNames" value="true" />
       </GradleProjectSettings>
     </option>
@@ -54,6 +54,10 @@
     <profile version="1.0">
       <option name="myName" value="Project Default" />
       <inspection_tool class="Duplicates" enabled="false" level="WARNING" enabled_by_default="false" />
+      <inspection_tool class="IgnoreResultOfCall" enabled="false" level="WARNING" enabled_by_default="false">
+        <option name="m_reportAllNonLibraryCalls" value="false" />
+        <option name="callCheckString" value="java.io.File,.*,java.io.InputStream,read|skip|available|markSupported,java.io.Reader,read|skip|ready|markSupported,java.lang.Boolean,.*,java.lang.Byte,.*,java.lang.Character,.*,java.lang.Double,.*,java.lang.Float,.*,java.lang.Integer,.*,java.lang.Long,.*,java.lang.Math,.*,java.lang.Object,equals|hashCode|toString,java.lang.Short,.*,java.lang.StrictMath,.*,java.lang.String,.*,java.lang.Thread,interrupted,java.math.BigInteger,.*,java.math.BigDecimal,.*,java.net.InetAddress,.*,java.net.URI,.*,java.util.Arrays,.*,java.util.List,of,java.util.Set,of,java.util.Map,of|ofEntries|entry,java.util.Collections,(?!addAll).*,java.util.UUID,.*,java.util.regex.Matcher,pattern|toMatchResult|start|end|group|groupCount|matches|find|lookingAt|quoteReplacement|replaceAll|replaceFirst|regionStart|regionEnd|hasTransparentBounds|hasAnchoringBounds|hitEnd|requireEnd,java.util.regex.Pattern,.*,java.util.stream.BaseStream,.*" />
+      </inspection_tool>
     </profile>
     <version value="1.0" />
   </component>
@@ -73,6 +77,13 @@
     <option name="HEAP_SIZE" />
     <option name="LOCALE" />
     <option name="OPEN_IN_BROWSER" value="true" />
+  </component>
+  <component name="ProjectDictionaryState">
+    <dictionary name="Sam">
+      <words>
+        <w>smeltery</w>
+      </words>
+    </dictionary>
   </component>
   <component name="ProjectModuleManager">
     <modules>
@@ -290,14 +301,15 @@
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/codechicken/CodeChickenLib/1.10.2-2.5.9.320/CodeChickenLib-1.10.2-2.5.9.320-sources.jar!/" />
       </SOURCES>
     </library>
-    <library name="Gradle: deobf.cofh:CoFHCore:1.12.2-4.6.1.22">
+    <library name="Gradle: deobf.cofh:CoFHCore:1.12.2-4.6.2.25">
       <CLASSES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.12.2-4.6.1.22/CoFHCore-1.12.2-4.6.1.22.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.12.2-4.6.2.25/CoFHCore-1.12.2-4.6.2.25.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.12.2-4.6.1.22/CoFHCore-1.12.2-4.6.1.22-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.12.2-4.6.2.25/CoFHCore-1.12.2-4.6.2.25-sources.jar!/" />
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.10.2-4.1.11.16/CoFHCore-1.10.2-4.1.11.16-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHCore/1.12.2-4.6.1.22/CoFHCore-1.12.2-4.6.1.22-sources.jar!/" />
       </SOURCES>
     </library>
     <library name="Gradle: deobf.cofh:CoFHWorld:1.12.2-1.3.0.6">
@@ -309,33 +321,36 @@
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/CoFHWorld/1.12.2-1.3.0.6/CoFHWorld-1.12.2-1.3.0.6-sources.jar!/" />
       </SOURCES>
     </library>
-    <library name="Gradle: deobf.cofh:RedstoneFlux:1.12-2.1.0.6">
+    <library name="Gradle: deobf.cofh:RedstoneFlux:1.12-2.1.0.7">
       <CLASSES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/RedstoneFlux/1.12-2.1.0.6/RedstoneFlux-1.12-2.1.0.6.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/RedstoneFlux/1.12-2.1.0.7/RedstoneFlux-1.12-2.1.0.7.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/RedstoneFlux/1.12-2.1.0.7/RedstoneFlux-1.12-2.1.0.7-sources.jar!/" />
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/RedstoneFlux/1.12-2.1.0.6/RedstoneFlux-1.12-2.1.0.6-sources.jar!/" />
       </SOURCES>
     </library>
-    <library name="Gradle: deobf.cofh:ThermalExpansion:1.12.2-5.5.2.39">
+    <library name="Gradle: deobf.cofh:ThermalExpansion:1.12.2-5.5.3.41">
       <CLASSES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.12.2-5.5.2.39/ThermalExpansion-1.12.2-5.5.2.39.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.12.2-5.5.3.41/ThermalExpansion-1.12.2-5.5.3.41.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.12.2-5.5.2.39/ThermalExpansion-1.12.2-5.5.2.39-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.12.2-5.5.3.41/ThermalExpansion-1.12.2-5.5.3.41-sources.jar!/" />
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.10.2-5.1.9.24/ThermalExpansion-1.10.2-5.1.9.24-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalExpansion/1.12.2-5.5.2.39/ThermalExpansion-1.12.2-5.5.2.39-sources.jar!/" />
       </SOURCES>
     </library>
-    <library name="Gradle: deobf.cofh:ThermalFoundation:1.12.2-2.6.1.22">
+    <library name="Gradle: deobf.cofh:ThermalFoundation:1.12.2-2.6.2.26">
       <CLASSES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.12.2-2.6.1.22/ThermalFoundation-1.12.2-2.6.1.22.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.12.2-2.6.2.26/ThermalFoundation-1.12.2-2.6.2.26.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.12.2-2.6.1.22/ThermalFoundation-1.12.2-2.6.1.22-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.12.2-2.6.2.26/ThermalFoundation-1.12.2-2.6.2.26-sources.jar!/" />
         <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.10.2-2.1.5.12/ThermalFoundation-1.10.2-2.1.5.12-sources.jar!/" />
+        <root url="jar://$USER_HOME$/.gradle/caches/minecraft/deobfedDeps/deobf/cofh/ThermalFoundation/1.12.2-2.6.1.22/ThermalFoundation-1.12.2-2.6.1.22-sources.jar!/" />
       </SOURCES>
     </library>
     <library name="Gradle: deobf.mezz.jei:jei_1.12.2:4.8.0.119">
