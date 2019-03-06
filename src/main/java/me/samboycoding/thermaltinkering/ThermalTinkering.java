@@ -8,7 +8,7 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.oredict.OreDictionary;
 import org.apache.commons.lang3.StringUtils;
@@ -36,7 +36,7 @@ public class ThermalTinkering {
     static final String DEPENDENCY_STRING = "" // This is just here for formatting
             + "required-after:mantle;"
             + "required-after:tconstruct;"
-            + "required-before:thermalexpansion;"
+            + "required-after:thermalexpansion;"
             + "required-after:thermalfoundation;"
             + "required-after:cofhcore@[4.6.2,);";
 
@@ -96,7 +96,7 @@ public class ThermalTinkering {
     }
 
     @Mod.EventHandler
-    public void Init(FMLInitializationEvent event) {
+    public void PostInit(FMLPostInitializationEvent event) {
         try {
             // Map the blacklist fluid IDs to actual fluids
             List<Fluid> blacklist = exceptionFluidIDs.stream().filter(id -> FluidRegistry.getFluid(id) != null)
